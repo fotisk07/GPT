@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from dataclasses import dataclass
+import tiktoken 
 
 
 class MultiHeadAttention(nn.Module):
@@ -19,7 +20,7 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x):
         # x: B, T, C
         B, T, C = x.size()
-        qkv = self.c_atn(x)  # B, T, 3 * n_embd
+        qkv = self.c_attn(x)  # B, T, 3 * n_embd
         q, k, v = torch.chunk(qkv, 3, dim=-1) # B, T, n_embd
 
         q = q.view(B, T, self.nb_head, self.n_embd // self.nb_head).permute(0, 2, 1, 3) # B, nb_head, T, headsize
@@ -45,7 +46,7 @@ class MLP(nn.Module):
 
     def forward(self, x):
         x = self.c_fc(x)
-        x = self.gelu(x)
+        x = self.act(x)
         x = self.c_proj(x)
 
         return x    
@@ -59,8 +60,8 @@ class Block(nn.Module):
         self.mlp = MLP(config)
         
     def forward(self, x):
-        x = x + self.attn(self.ln1(x))
-        x = x + self.mlp(self.ln2(x))
+        x = x + self.attn(self.ln_1(x))
+        x = x + self.mlp(self.ln_2(x))
         return x
     
 
@@ -85,6 +86,21 @@ class GPT(nn.Module):
         ))
 
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+
+    def forward(self, x):
+        # x is (B, T)
+        token_encoding = self.transformer['wte'](x) # (B, T, C)
+        position_encoding = self.transformer['wpe'](torch.arange(x.size(1), device=x.device)) # (T, C)
+
+        x = token_encoding + position_encoding # (B, T, C) broadcast along B
+
+        for block in self.transformer['h']:
+            x = block(x)
+
+        x = self.transformer['ln_f'](x)
+        logits = self.lm_head(x) # (B, T, V)
+
+        return logits
     
     @classmethod
     def from_pretrained(cls, model_type):
@@ -139,9 +155,13 @@ class GPT(nn.Module):
 
 if __name__ == "__main__":
     model = GPT.from_pretrained('gpt2')
+    enc = tiktoken.encoding_for_model("gpt-2")
 
-    print("It works")
+    text = "Hello, my name is"
+    token = enc.encode(text)
+    token = torch.tensor(token).unsqueeze(0)
 
+    logits = model(token)
 
     
         

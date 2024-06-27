@@ -159,22 +159,70 @@ class GPT(nn.Module):
 
         return model
     
+    
+    
+class Dataloader():
+    def __init__(self, B, T):
+        self.B = B
+        self.T = T
+        self.start_pos = 0
+        
+        with open("shakespeare.txt", "r") as f:
+            text = f.read()
+        enc = tiktoken.get_encoding("gpt2")
+        tokens = enc.encode_ordinary(text)
+        self.tokens = torch.tensor(tokens)
+        
+        print("Number of tokens:", len(self.tokens))
+        print(f"1 epoch = {len(self.tokens) // (B * T)} batches")
+        
+    def next_batch(self):
+        buff = self.tokens[self.start_pos:self.start_pos + self.B * self.T + 1]
+        x = buff[:-1].view(self.B, self.T)
+        y = buff[1:].view(self.B, self.T)
+        
+        self.start_pos += self.B * self.T
+        if self.start_pos + self.B * self.T + 1 >= len(self.tokens):
+            self.start_pos = 0
+            
+        return x, y
+        
+        
+        
 
 if __name__ == "__main__":
-    num_return_sequences = 5
-    max_length = 30
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+    
+    # For reproducibility, in sync with Andej Karpathy's GPT2 training script
+    torch.manual_seed(1337)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(1337)
 
-    model = GPT.from_pretrained('gpt2')
-    model.eval()
+    model = GPT(GPTConfig())
     model.to(device)
+        
+    #---------------model training-------------------------------------------------------
+    
+    # load the dataset
+    train_loader = Dataloader(4, 32)
+    
 
-    # prefix tokens
-    enc = tiktoken.get_encoding('gpt2')
-    tokens = enc.encode("Hello, I'm a language model,")
-    tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
-    tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
-    x = tokens.to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    
+    for i in range(20):
+        optimizer.zero_grad()
+        x,y = train_loader.next_batch()
+        logits, loss = model(x.to(device), y.to(device))
+        loss.backward()
+        optimizer.step()
+        print(f"Step {i}, loss:", loss.item())
+
+
+    import sys ; sys.exit(0)
+    
+    
+    #---------------model sampling-------------------------------------------------------
 
     # generate! right now x is (B, T) where B = 5, T = 8
     # set the seed to 42

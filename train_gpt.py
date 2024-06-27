@@ -13,6 +13,7 @@ class MultiHeadAttention(nn.Module):
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
 
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
+        self.NANOGPT_SCALE_INIT = 1 #Following karpathy GPT2 training script for initialization of residual weights
 
         self.nb_head = config.n_head
         self.n_embd = config.n_embd
@@ -44,6 +45,8 @@ class MLP(nn.Module):
         self.c_fc = nn.Linear(config.n_embd, config.n_embd * 4)
         self.act = nn.GELU(approximate='tanh')
         self.c_proj = nn.Linear(config.n_embd * 4, config.n_embd)
+        self.NANOGPT_SCALE_INIT = 1 #Following karpathy GPT2 training script for initialization of residual weights
+
 
     def forward(self, x):
         x = self.c_fc(x)
@@ -79,16 +82,37 @@ class GPTConfig:
 class GPT(nn.Module):
     def __init__(self, config):
         super(GPT, self).__init__()
+        self.config = config
+        
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             wpe = nn.Embedding(config.block_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = nn.LayerNorm(config.n_embd),
         ))
+        
 
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        
+        # parameter sharing with wte and lm_head
+        self.transformer.wte.weight = self.lm_head.weight
+        
+        # Parameter initialization
+        self.apply(self._init_weights)
 
-    def forward(self, x):
+        
+    def _init_weights(self, module):
+        std = 0.02
+        if hasattr(module, "NANOGPT_SCALE_INIT"):
+            std *= (2 * self.config.n_layer) ** -0.5
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def forward(self, x, targets=None):
         # x is (B, T)
         B, T = x.size()
         assert T <= self.transformer['wpe'].weight.size(0), "Cannot forward, model has been trained with T=%d, but current sequence has length T=%d" % (self.transformer['wpe'].weight.size(0), T)
@@ -186,6 +210,8 @@ class Dataloader():
             self.start_pos = 0
             
         return x, y
+        
+        
         
         
         

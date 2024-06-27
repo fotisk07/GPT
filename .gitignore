@@ -2,3 +2,5 @@ venv/
 solution
 __pycache__/
 play.ipynb
+out.out
+job.batch

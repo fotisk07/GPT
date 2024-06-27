@@ -31,10 +31,12 @@ class MultiHeadAttention(nn.Module):
         k = k.view(B, T, self.nb_head, self.n_embd // self.nb_head).permute(0, 2, 1, 3) # B, nb_head, T, headsize
         v = v.view(B, T, self.nb_head, self.n_embd // self.nb_head).permute(0, 2, 1, 3) # B, nb_head, T, headsize
 
-        attention = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        attention =  attention.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
-        attention = torch.nn.functional.softmax(attention, dim=-1) # B, nb_head, T, T
-        out = torch.matmul(attention, v) # B, nb_head, T, headsize
+        # attention = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        # attention =  attention.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+        # attention = torch.nn.functional.softmax(attention, dim=-1) # B, nb_head, T, T
+        # out = torch.matmul(attention, v) # B, nb_head, T, headsize
+        out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        
         out = out.permute(0, 2, 1, 3).contiguous().view(B, T, self.n_embd) # B, T, n_embd
         out = self.c_proj(out) # B, T, n_embd
         
@@ -233,7 +235,7 @@ if __name__ == "__main__":
     #---------------model training-------------------------------------------------------
     
     # load the dataset
-    B, T = 16, 1024
+    B, T = 3, 5
     train_loader = Dataloader(B, T)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
     

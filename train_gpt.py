@@ -228,16 +228,16 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(1337)
 
-    model = GPT(GPTConfig())
+    model = GPT(GPTConfig(vocab_size=50304))
     model.to(device)
+    model = torch.compile(model)
         
     torch.set_float32_matmul_precision('high')
     #---------------model training-------------------------------------------------------
     
     # load the dataset
-    B, T = 3, 5
-    train_loader = Dataloader(B, T)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    train_loader = Dataloader(B = 16, T = 1024)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
     
     for i in range(20):
         t0 = time.time()
@@ -247,6 +247,7 @@ if __name__ == "__main__":
         with torch.autocast(device_type=str(device), dtype = torch.bfloat16):
             logits, loss = model(x, y)
         loss.backward()
+        norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         if device == torch.device("cuda"):
             torch.cuda.synchronize()

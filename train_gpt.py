@@ -29,7 +29,7 @@ class MultiHeadAttention(nn.Module):
         k = k.view(B, T, self.nb_head, self.n_embd // self.nb_head).permute(0, 2, 1, 3) # B, nb_head, T, headsize
         v = v.view(B, T, self.nb_head, self.n_embd // self.nb_head).permute(0, 2, 1, 3) # B, nb_head, T, headsize
 
-        attention = (q @ k.transpose(-2, -1)) * (1.0 / torch.sqrt(k.size(-1)))
+        attention = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         attention =  attention.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
         attention = torch.nn.functional.softmax(attention, dim=-1) # B, nb_head, T, T
         out = torch.matmul(attention, v) # B, nb_head, T, headsize

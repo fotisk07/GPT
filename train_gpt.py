@@ -252,7 +252,8 @@ if __name__ == "__main__":
             torch.cuda.synchronize()
         t1 = time.time()
         dt = t1 - t0
-        print(f"Step {i}, loss: {loss.item():.3f}, dt: {1000 * dt:.2f} ms, tokens/s: {B * T/dt : .2f}")
+        print(f"Step {i} | Loss: {loss.item():.3f} | Norm: {norm:.3f} | dt: {1000 * dt:.2f} ms | tokens/s: {train_loader.B * train_loader.T/dt : .2f}")
+        
       
 
 

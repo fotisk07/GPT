@@ -229,23 +229,29 @@ if __name__ == "__main__":
     model = GPT(GPTConfig())
     model.to(device)
         
+    torch.set_float32_matmul_precision('high')
     #---------------model training-------------------------------------------------------
     
     # load the dataset
-    train_loader = Dataloader(16, 10)
-    
-
+    B, T = 16, 1024
+    train_loader = Dataloader(B, T)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
     
     for i in range(20):
         t0 = time.time()
         optimizer.zero_grad()
         x,y = train_loader.next_batch()
-        logits, loss = model(x.to(device), y.to(device))
+        x, y = x.to(device), y.to(device)
+        with torch.autocast(device_type=str(device), dtype = torch.bfloat16):
+            logits, loss = model(x, y)
         loss.backward()
         optimizer.step()
+        if device == torch.device("cuda"):
+            torch.cuda.synchronize()
         t1 = time.time()
-        print(f"Step {i}, loss:", loss.item(), "time:", t1-t0, "tokens/sec:", x.size(0) * x.size(1) / (t1-t0))
+        dt = t1 - t0
+        print(f"Step {i}, loss: {loss.item():.3f}, dt: {1000 * dt:.2f} ms, tokens/s: {B * T/dt : .2f}")
+      
 
 
     import sys ; sys.exit(0)

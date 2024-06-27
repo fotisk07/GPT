@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import tiktoken 
 import torch.nn.functional as F
 import math
+import time
 
 
 class MultiHeadAttention(nn.Module):
@@ -231,18 +232,20 @@ if __name__ == "__main__":
     #---------------model training-------------------------------------------------------
     
     # load the dataset
-    train_loader = Dataloader(4, 32)
+    train_loader = Dataloader(16, 10)
     
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
     
     for i in range(20):
+        t0 = time.time()
         optimizer.zero_grad()
         x,y = train_loader.next_batch()
         logits, loss = model(x.to(device), y.to(device))
         loss.backward()
         optimizer.step()
-        print(f"Step {i}, loss:", loss.item())
+        t1 = time.time()
+        print(f"Step {i}, loss:", loss.item(), "time:", t1-t0, "tokens/sec:", x.size(0) * x.size(1) / (t1-t0))
 
 
     import sys ; sys.exit(0)

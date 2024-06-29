@@ -1,0 +1,37 @@
+
+# Model configuration
+block_size: 1024 # max sequence length
+vocab_size: 50304 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
+n_layer: 12 # number of layers
+n_head: 12 # number of heads
+n_embd: 768 # embedding dimension
+
+# Dataloading configuration
+total_batch_size : 524288 # 0.5M batch size (2 ** 19 tokens)
+B : 64 # mini batch size
+T : 1024 # sequence length
+data_path : 'shakespeare.txt'
+
+# Trainer configuration
+weight_decay: 0.1
+learning_rate : 6.0e-4
+max_lr :  6.0e-4
+warmup_steps : 10
+betas : [0.9, 0.95]
+eps : 1.0e-8
+
+max_steps : 50
+verbose : True
+
+# Save configuration
+save_path : 'logs/'
+checkpoint_steps : 0
+
+# Loading configuration
+load_path : 'logs/'
+
+
+# Logging 
+wandb_log : True
+
+

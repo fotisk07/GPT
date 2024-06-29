@@ -6,3 +6,5 @@ out.out
 job.batch
 testing.py 
 solution.py
+logs/
+wandb/
